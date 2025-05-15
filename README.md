@@ -12,6 +12,7 @@ once above is installed, run the following command to setup the environment:
 `uv sync`
 
 # Project Structure
+`
 .
 ├── .venv
 ├── .python-version
@@ -20,6 +21,7 @@ once above is installed, run the following command to setup the environment:
 ├── main.py
 ├── pyproject.toml
 └── uv.lock
+`
 
 # Project Description
 - .venv : This is the virtual environment where uv will install all the packages; Will be created automatically on the root of project when you initialize the project
