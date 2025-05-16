@@ -1,0 +1,2 @@
+def osc():
+    print('Hello!')
