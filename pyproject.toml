@@ -1,14 +1,25 @@
 [project]
-name = "neurotheatre-ezmsg"
+name = "neurotheatre"
 version = "0.1.0"
-description = "This repo has EzMsg implementation for neurotheatre project application"
+description = "This repo has ezmsg implementation for neurotheatre project application"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-    "ezmsg",
-    "numpy",
-    "scipy",
-    "wheel",
-    "pyaudio",
-    "mido"
+    "ezmsg>=3.6.1",
+    "mido>=1.3.3",
+    "numpy>=2.0.2",
+    "pyaudio>=0.2.14",
+    "python-osc>=1.8.3",
+    "scipy>=1.13.1",
+    "ezmsg-unicorn[dashboard]"
 ]
+
+[project.scripts]
+osc = "neurotheatre.command:osc"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+ezmsg-unicorn = { git = "https://github.com/griffinmilsap/ezmsg-unicorn.git" }
