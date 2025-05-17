@@ -9,9 +9,10 @@ dependencies = [
     "mido>=1.3.3",
     "numpy>=2.0.2",
     "pyaudio>=0.2.14",
-    "python-osc>=1.8.3",
+    "python-osc>=1.9.3",
     "scipy>=1.13.1",
-    "ezmsg-unicorn[dashboard]"
+    "ezmsg-unicorn[dashboard]",
+    "ezmsg-sigproc>=1.5.0",
 ]
 
 [project.scripts]
