@@ -3,7 +3,7 @@ name = "neurotheatre"
 version = "0.1.0"
 description = "This repo has ezmsg implementation for neurotheatre project application"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.11"
 dependencies = [
     "ezmsg>=3.6.1",
     "mido>=1.3.3",
