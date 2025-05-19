@@ -76,11 +76,6 @@ def toAudio():
 
     signaltoaudio = SignalToAudioSystem(
         SignalToAudioSystemSettings(
-            eegosc_settings = EEGOSCSettings(
-                address = args.address,
-                port = args.port
-            ),
-
             unicorn_settings = UnicornSettings(
                 address = args.device,
                 n_samp = args.blocksize
