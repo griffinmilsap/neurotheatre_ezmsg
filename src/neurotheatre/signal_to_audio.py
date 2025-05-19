@@ -1,5 +1,3 @@
-import argparse
-
 import ezmsg.core as ez
 
 from ezmsg.unicorn.device import UnicornSettings

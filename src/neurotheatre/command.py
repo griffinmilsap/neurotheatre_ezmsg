@@ -61,8 +61,6 @@ def toAudio():
 
     parser = argparse.ArgumentParser(description = 'unicorn OSC client')
     parser.add_argument('-d', '--device', help = 'device address', default = 'simulator')
-    parser.add_argument('-a', '--address', help = 'remote OSC server address', default = 'localhost')
-    parser.add_argument('-p', '--port', help = 'remote OSC server port (UDP)', default = 8000, type = int)
     parser.add_argument('--blocksize', help = 'eeg sample block size @ 200 Hz', default = 10, type = int)
 
 
