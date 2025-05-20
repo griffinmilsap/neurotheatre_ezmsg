@@ -10,7 +10,9 @@ from neurotheatre.osc import OSCSystem, OSCSystemSettings, EEGOSCSettings
 from neurotheatre.injector import InjectorSettings
 from neurotheatre.audioloopback import AudioLoopbackSettings
 from neurotheatre.upsample import UpsampleSettings
+from neurotheatre.midiunit import MidiSettings
 from neurotheatre.signal_to_audio import SignalToAudioSystem, SignalToAudioSystemSettings
+from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
 
 def osc():
 
@@ -131,9 +133,6 @@ def toMidi():
         midiport: str
 
     args = parser.parse_args(namespace=Args)
-
-    from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
-    from neurotheatre.midiunit import MidiSettings
 
     signaltomidi = SignalToMidiSystem(
         SignalToMidiSystemSettings(
