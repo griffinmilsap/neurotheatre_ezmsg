@@ -19,8 +19,8 @@ dependencies = [
 
 [project.scripts]
 osc = "neurotheatre.command:osc"
-toaudio = "neurotheatre.command:toAudio"
-tomidi = "neurotheatre.command:toMidi"
+toaudio = "neurotheatre.command:to_audio"
+tomidi = "neurotheatre.command:to_midi"
 
 [build-system]
 requires = ["hatchling"]

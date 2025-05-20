@@ -14,8 +14,8 @@ class AudioLoopbackState(ez.State):
     pyaudio_instance: pyaudio.PyAudio = None  # PyAudio instance
 
 class AudioLoopback(ez.Unit):
-    SETTINGS: AudioLoopbackSettings
-    STATE: AudioLoopbackState
+    SETTINGS = AudioLoopbackSettings
+    STATE = AudioLoopbackState
 
     INPUT_SIGNAL = ez.InputStream(AxisArray)
 

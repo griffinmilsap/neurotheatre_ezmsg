@@ -14,8 +14,8 @@ class MidiState(ez.State):
     midi_out: mido.ports.BaseOutput = None  # MIDI output port
 
 class Midi(ez.Unit):
-    SETTINGS: MidiSettings
-    STATE: MidiState
+    SETTINGS = MidiSettings
+    STATE = MidiState
 
     INPUT_SIGNAL = ez.InputStream(AxisArray)
 

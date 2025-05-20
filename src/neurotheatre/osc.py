@@ -93,4 +93,5 @@ class OSCSystem(ez.Collection):
         return (
             (self.DASHBOARD.OUTPUT_SIGNAL, self.OSC.INPUT_SIGNAL),
             (self.DASHBOARD.OUTPUT_MOTION, self.OSC.INPUT_MOTION),
+            (self.DASHBOARD.OUTPUT_MOTION, self.LOG.INPUT),
         )

@@ -59,7 +59,7 @@ def osc():
         APP = app,
     )
 
-def toAudio():
+def to_audio():
 
     parser = argparse.ArgumentParser(description = 'unicorn OSC client')
     parser.add_argument('-d', '--device', help = 'device address', default = 'simulator')
@@ -121,7 +121,7 @@ def toAudio():
         APP = app,
     )
 
-def toMidi():
+def to_midi():
     parser = argparse.ArgumentParser(description='unicorn MIDI client')
     parser.add_argument('-d', '--device', help='device address', default='simulator')
     parser.add_argument('--blocksize', help='eeg sample block size @ 200 Hz', default=10, type=int)
