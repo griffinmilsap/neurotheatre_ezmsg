@@ -8,6 +8,14 @@ from ezmsg.util.debuglog import DebugLog
 
 from pythonosc.udp_client import SimpleUDPClient
 
+from ezmsg.util.generator import compose
+from ezmsg.sigproc.window import windowing
+from ezmsg.sigproc.butterworthfilter import butter
+from ezmsg.sigproc.slicer import slicer
+from ezmsg.sigproc.affinetransform import common_rereference
+
+from .frequencydecoder import frequency_decode
+
 
 class EEGOSCSettings(ez.Settings):
     port: int
@@ -29,6 +37,26 @@ class EEGOSC(ez.Unit):
             address = self.SETTINGS.address, 
             port = self.SETTINGS.port
         )
+
+        # freqs = [1000/per for per in [143, 111, 90, 77]] # ~ 7, 9, 11, 13 Hz
+
+        # # Enforce null is always class 0
+        # state_labels = ['null'] + [f'{f:0.2f} Hz' for f in freqs]
+        # n_states = len(state_labels)
+        # n_ch = len(eeg.ax('ch'))
+
+        # cz_ref = np.zeros((n_ch, n_ch))
+        # cz_ref[4, :] = -1 # Cz reference
+        # cz_ref[np.diag_indices(n_ch)] = 1
+
+        # pipeline = compose(
+        #     butter(axis = 'time', order = 3, cuton = 5.0, cutoff = 40.0),
+        #     common_rereference(axis = 'ch'),
+        #     # affine_transform(cz_ref, axis = 'ch'),
+        #     slicer(selection = "5:", axis = 'ch'),
+        #     windowing(axis = 'time', newaxis = 'window', window_dur = 4.0, window_shift = 0.5, zero_pad_until = 'input'),
+        #     frequency_decode(time_axis = 'time', harmonics = 2, freqs = freqs, softmax_beta = 5.0, window_axis = 'window', calc_corrs = True),
+        # )
 
     @ez.subscriber(INPUT_SIGNAL)
     async def on_signal(self, msg: AxisArray):
