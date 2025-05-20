@@ -31,8 +31,15 @@ once above is installed, run the following command to setup the environment:
 # Running the project
 currently following commands are implemented
 - osc
-- toAudio
-To run a specific command, do `uv run <command>`
+- toaudio
+- tomidi
+To run a specific command, do `uv run <command> <parameters>`
+
+*Examples:* 
+- To run the toaudio, with default parameters and input signal as simulator, you can do `uv run toaudio`. 
+  This will open a new tab in browser, where you can see the signal (set filter order to 3, cuton fs = 1 and cutoff fs = 30 Hz to see the post processed signal). This will also play the audio for the signal.
+
+- To run the tomidi, with default parameters and input signal as simulator, open up a new Garageband Project as midi type and then run `uv run tomidi`. This will open a new tab in browser, where you can see the signal (set filter order to 3, cuton fs = 1 and cutoff fs = 30 Hz to see the post processed signal). This will also play the audio for the signal in garageband.
 
 # ENVIRONMENT NOTE
 The dependencies are meant to be working on python version 3.10/3.11, which is what is reflected on the pyproject file. Please do not change that
