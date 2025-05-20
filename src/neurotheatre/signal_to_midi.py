@@ -1,36 +1,40 @@
-# Filename: ezmsg_to_midi.py
-
 import ezmsg.core as ez
-import pyaudio
-import numpy as np
-import mido
 
-class AudioToMidi(ez.Unit):
-    def initialize(self):
-        self.p = pyaudio.PyAudio()
-        self.stream = self.p.open(format=pyaudio.paInt16,
-                                  channels=1,
-                                  rate=44100,
-                                  input=True,
-                                  frames_per_buffer=1024)
-        self.midi_out = mido.open_output('VirtualMIDI', virtual=True)
+from ezmsg.unicorn.device import UnicornSettings
+from ezmsg.unicorn.dashboard import UnicornDashboard, UnicornDashboardSettings
 
-    def process(self):
-        while True:
-            data = self.stream.read(1024)
-            audio_data = np.frombuffer(data, dtype=np.int16)
-            midi_note = self.audio_to_midi(audio_data)
-            if midi_note:
-                msg = mido.Message('note_on', note=midi_note, velocity=64)
-                self.midi_out.send(msg)
+from neurotheatre.midiunit import Midi, MidiSettings
+from neurotheatre.injector import Injector, InjectorSettings
+from ezmsg.sigproc.butterworthfilter import ButterworthFilter, ButterworthFilterSettings
 
-    def audio_to_midi(self, audio_data):
-        # Placeholder: Convert audio data to MIDI note
-        # Implement your own logic here
-        return 60  # Example: Always return middle C (MIDI note 60)
+class SignalToMidiSystemSettings(ez.Settings):
+    unicorn_settings: UnicornSettings
+    injector_settings: InjectorSettings
+    butterworth_filter_settings: ButterworthFilterSettings
+    midi_settings: MidiSettings
 
-    def shutdown(self):
-        self.stream.stop_stream()
-        self.stream.close()
-        self.p.terminate()
-        self.midi_out.close()
+class SignalToMidiSystem(ez.Collection):
+
+    SETTINGS = SignalToMidiSystemSettings
+
+    DASHBOARD = UnicornDashboard()
+    INJECTOR = Injector()
+    FILTER = ButterworthFilter()
+    MIDI = Midi()
+
+    def configure(self) -> None:
+        self.DASHBOARD.apply_settings(
+            UnicornDashboardSettings(
+                device_settings=self.SETTINGS.unicorn_settings
+            )
+        )
+        self.INJECTOR.apply_settings(self.SETTINGS.injector_settings)
+        self.FILTER.apply_settings(self.SETTINGS.butterworth_filter_settings)
+        self.MIDI.apply_settings(self.SETTINGS.midi_settings)
+
+    def network(self) -> ez.NetworkDefinition:
+        return (
+            (self.DASHBOARD.OUTPUT_SIGNAL, self.INJECTOR.INPUT_SIGNAL),
+            (self.INJECTOR.OUTPUT_SIGNAL, self.FILTER.INPUT_SIGNAL),
+            (self.FILTER.OUTPUT_SIGNAL, self.MIDI.INPUT_SIGNAL),
+        )

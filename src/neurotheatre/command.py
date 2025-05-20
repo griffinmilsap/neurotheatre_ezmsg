@@ -118,3 +118,63 @@ def toAudio():
         SIGNALTOAUDIO = signaltoaudio,
         APP = app,
     )
+
+def toMidi():
+    parser = argparse.ArgumentParser(description='unicorn MIDI client')
+    parser.add_argument('-d', '--device', help='device address', default='simulator')
+    parser.add_argument('--blocksize', help='eeg sample block size @ 200 Hz', default=10, type=int)
+    parser.add_argument('--midiport', help='MIDI Output port name', default='GarageBand Virtual In')
+
+    class Args:
+        device: str
+        blocksize: int
+        midiport: str
+
+    args = parser.parse_args(namespace=Args)
+
+    from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
+    from neurotheatre.midiunit import MidiSettings
+
+    signaltomidi = SignalToMidiSystem(
+        SignalToMidiSystemSettings(
+            unicorn_settings=UnicornSettings(
+                address=args.device,
+                n_samp=args.blocksize
+            ),
+
+            injector_settings=InjectorSettings(
+                enabled=False,
+                freq=440,
+            ),
+
+            butterworth_filter_settings=ButterworthFilterSettings(
+                axis='time',
+                order=3,
+                cuton=1.0,
+                cutoff=30.0,
+            ),
+
+            midi_settings=MidiSettings(
+                midi_port=args.midiport,
+                channel=0,
+                note_range=(21, 108),
+                velocity=64,
+            ),
+        )
+    )
+
+    app = Application(
+        ApplicationSettings(
+            port=8888,
+            name='Neurotheatre'
+        )
+    )
+
+    app.panels = {
+        'signal_to_midi': signaltomidi.DASHBOARD.app,
+    }
+
+    ez.run(
+        SIGNALTOMIDI=signaltomidi,
+        APP=app,
+    )

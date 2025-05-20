@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
     "ezmsg>=3.6.1",
+    "python-rtmidi",
     "mido>=1.3.3",
     "numpy>=2.0.2",
     "pyaudio>=0.2.14",
@@ -13,11 +14,13 @@ dependencies = [
     "scipy>=1.13.1",
     "ezmsg-unicorn[dashboard]",
     "ezmsg-sigproc>=1.5.0",
+    "matplotlib"
 ]
 
 [project.scripts]
 osc = "neurotheatre.command:osc"
 toaudio = "neurotheatre.command:toAudio"
+tomidi = "neurotheatre.command:toMidi"
 
 [build-system]
 requires = ["hatchling"]
