@@ -7,6 +7,7 @@ This is a uv project.
 install the following packages:
 - uv: https://docs.astral.sh/uv/getting-started/installation/
 - portaudio (dependency needed for pyaudio, which will be installed by uv). just run `brew install portaudio` for mac
+- LSL library if you are using muse Device by running `brew install labstreaminglayer/tap/lsl` (As a dependency for muselsl which will be installed by uv)
 
 once above is installed, run the following command to setup the environment:
 `uv sync`
@@ -33,6 +34,7 @@ currently following commands are implemented
 - osc
 - toaudio
 - tomidi
+
 To run a specific command, do `uv run <command> <parameters>`
 
 *Examples:* 

@@ -5,8 +5,9 @@ import ezmsg.core as ez
 from ezmsg.unicorn.device import UnicornSettings
 from ezmsg.panel.application import Application, ApplicationSettings
 from ezmsg.sigproc.butterworthfilter import ButterworthFilterSettings
-
-from neurotheatre.osc import OSCSystem, OSCSystemSettings, EEGOSCSettings
+from ezmsg.panel.timeseriesplot import TimeSeriesPlotSettings
+from neurotheatre.osc import OSCSystem, OSCSystemSettings, EEGOSCSettings, MuseOSCSystem, MuseOSCSystemSettings
+from neurotheatre.muse.musedevice import MuseUnitSettings
 from neurotheatre.injector import InjectorSettings
 from neurotheatre.audioloopback import AudioLoopbackSettings
 from neurotheatre.upsample import UpsampleSettings
@@ -57,6 +58,54 @@ def osc():
     ez.run(
         OSC = osc,
         APP = app,
+    )
+
+def museosc():
+
+    parser = argparse.ArgumentParser(description='Muse OSC client')
+    parser.add_argument('-d', '--device', help='Muse device name (leave empty for auto-detection)', default=None)
+    parser.add_argument('-a', '--address', help='Remote OSC server address', default='localhost')
+    parser.add_argument('-p', '--port', help='Remote OSC server port (UDP)', default=8000, type=int)
+    parser.add_argument('--blocksize', help = 'eeg sample block size @ 256 Hz', default = 10, type = int)
+
+    class Args:
+        muse_name: str
+        address: str
+        port: int
+
+    args = parser.parse_args(namespace=Args)
+
+    museosc = MuseOSCSystem(
+        MuseOSCSystemSettings(
+            muse_settings=MuseUnitSettings(
+                muse_name=args.device,
+                blocksize=args.blocksize,
+            ),
+            osc_settings=EEGOSCSettings(
+                address=args.address,
+                port=args.port,
+            ),
+            plot_settings=TimeSeriesPlotSettings(
+                name="Muse EEG Data",
+                downsample_factor=2,
+            ),
+        )
+    )
+
+    app = Application(
+        ApplicationSettings(
+            port=8888,
+            name='MuseOSC'
+        )
+    )
+
+    app.panels = {
+        'muse_osc': museosc.PLOT.app
+    }
+
+    ez.run(
+        MUSEOSC=museosc,
+        APP=app,
     )
 
 def to_audio():

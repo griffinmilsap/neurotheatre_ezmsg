@@ -6,6 +6,8 @@ from dataclasses import field
 from ezmsg.unicorn.dashboard import UnicornDashboard, UnicornDashboardSettings
 from ezmsg.unicorn.device import UnicornSettings
 
+from neurotheatre.muse.musedevice import MuseUnit, MuseUnitSettings
+from ezmsg.panel.timeseriesplot import TimeSeriesPlotSettings, TimeSeriesPlot
 from ezmsg.util.messages.axisarray import AxisArray
 from ezmsg.util.debuglog import DebugLog
 
@@ -89,4 +91,28 @@ class OSCSystem(ez.Collection):
         return (
             (self.DASHBOARD.OUTPUT_SIGNAL, self.OSC.INPUT_SIGNAL),
             (self.DASHBOARD.OUTPUT_MOTION, self.OSC.INPUT_MOTION),
+        )
+
+
+class MuseOSCSystemSettings(ez.Settings):
+    muse_settings: MuseUnitSettings
+    osc_settings: EEGOSCSettings
+    plot_settings: TimeSeriesPlotSettings
+
+class MuseOSCSystem(ez.Collection):
+    SETTINGS: MuseOSCSystemSettings
+
+    MUSE = MuseUnit()
+    OSC = EEGOSC()
+    PLOT = TimeSeriesPlot()
+
+    def configure(self) -> None:
+        self.MUSE.apply_settings(self.SETTINGS.muse_settings)
+        self.OSC.apply_settings(self.SETTINGS.osc_settings)
+        self.PLOT.apply_settings(self.SETTINGS.plot_settings)
+
+    def network(self) -> ez.NetworkDefinition:
+        return (
+            (self.MUSE.OUTPUT_SIGNAL, self.OSC.INPUT_SIGNAL),  # Connect Muse output to OSC input
+            (self.MUSE.OUTPUT_SIGNAL, self.PLOT.INPUT_SIGNAL),
         )
