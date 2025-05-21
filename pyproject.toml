@@ -14,7 +14,8 @@ dependencies = [
     "scipy>=1.13.1",
     "ezmsg-unicorn[dashboard]",
     "ezmsg-sigproc>=1.5.0",
-    "matplotlib"
+    "matplotlib",
+    "muselsl"
 ]
 
 [project.scripts]
