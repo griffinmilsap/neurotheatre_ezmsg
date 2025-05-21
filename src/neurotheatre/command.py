@@ -63,7 +63,7 @@ def osc():
 def museosc():
 
     parser = argparse.ArgumentParser(description='Muse OSC client')
-    parser.add_argument('-n', '--muse-name', help='Muse device name (leave empty for auto-detection)', default=None)
+    parser.add_argument('-d', '--device', help='Muse device name (leave empty for auto-detection)', default=None)
     parser.add_argument('-a', '--address', help='Remote OSC server address', default='localhost')
     parser.add_argument('-p', '--port', help='Remote OSC server port (UDP)', default=8000, type=int)
     parser.add_argument('--blocksize', help = 'eeg sample block size @ 256 Hz', default = 10, type = int)
@@ -78,17 +78,16 @@ def museosc():
     museosc = MuseOSCSystem(
         MuseOSCSystemSettings(
             muse_settings=MuseUnitSettings(
-                muse_name=args.muse_name,
-                axis="time",
+                muse_name=args.device,
                 blocksize=args.blocksize,
             ),
             osc_settings=EEGOSCSettings(
-                osc_address=args.address,
-                osc_port=args.port,
+                address=args.address,
+                port=args.port,
             ),
             plot_settings=TimeSeriesPlotSettings(
-                time_axis="time",
-                plot_title="Muse EEG Data",
+                name="Muse EEG Data",
+                downsample_factor=2,
             ),
         )
     )

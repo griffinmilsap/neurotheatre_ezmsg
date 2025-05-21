@@ -2,6 +2,7 @@ import ezmsg.core as ez
 from ezmsg.util.messages.axisarray import AxisArray
 from typing import AsyncGenerator
 import numpy as np
+from bleak import BleakScanner
 from muselsl import list_muses, stream
 from pylsl import StreamInlet, resolve_byprop
 
@@ -23,16 +24,21 @@ class MuseUnit(ez.Unit):
     OUTPUT_SIGNAL = ez.OutputStream(AxisArray)
 
     async def initialize(self) -> None:
-        # List available Muse devices
-        muses = list_muses()
+        # Discover Muse devices using BleakScanner
+        print("Scanning for Muse devices. Please wait upto 10 seconds.")
+        devices = await BleakScanner.discover(timeout=10.0)  # Set a timeout for scanning
+        if not devices:
+            raise RuntimeError("No Muse devices found. Please ensure your Muse is powered on and discoverable.")
+        muses = [device for device in devices if "Muse" in device.name]
         if not muses:
             raise RuntimeError("No Muse devices found. Please ensure your Muse is powered on and discoverable.")
 
-        # Start streaming from the first available Muse device
         muse_name = self.SETTINGS.muse_name
-        muse = next((m for m in muses if m['name'] == muse_name), muses[0])
-        print(f"Starting stream for Muse: {muse['name']} at {muse['address']}")
-        stream(muse['address'])
+        # Select muse from either the muse_name or 
+        # the first available Muse device if muse_name is None
+        muse = next((m for m in muses if m.name == muse_name), muses[0])
+        print(f"Starting stream for Muse: {muse.name} at {muse.address}")
+        stream(muse.address)
 
         # Resolve the LSL stream
         print("Resolving LSL stream...")
