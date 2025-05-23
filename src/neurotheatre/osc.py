@@ -58,6 +58,7 @@ class EEGOSC(ez.Unit):
             probs = posteriors.isel(window = -1).data.flatten()
             freq = self.SETTINGS.freqs[probs.argmax().item()]
             prob = probs[probs.argmax().item()].item()
+            ez.logger.info(posteriors)
             self.STATE.client.send_message("/ssvep/focus", [freq, prob])
 
     @ez.subscriber(INPUT_MOTION)
