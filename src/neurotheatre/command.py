@@ -12,8 +12,10 @@ from neurotheatre.injector import InjectorSettings
 from neurotheatre.audioloopback import AudioLoopbackSettings
 from neurotheatre.upsample import UpsampleSettings
 from neurotheatre.midiunit import MidiSettings
+from neurotheatre.waveunit import WaveUnitSettings
 from neurotheatre.signal_to_audio import SignalToAudioSystem, SignalToAudioSystemSettings
 from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
+from neurotheatre.signal_to_wave import WaveSystem, WaveSystemSettings
 
 def osc():
 
@@ -224,5 +226,46 @@ def to_midi():
 
     ez.run(
         SIGNALTOMIDI=signaltomidi,
+        APP=app,
+    )
+
+def to_wave():
+    parser = argparse.ArgumentParser(description='Unicorn to dominant frequency wave')
+    parser.add_argument('-d', '--device', help='Device address', default='simulator')
+    parser.add_argument('--blocksize', help='EEG sample block size @ 256 Hz', default=10, type=int)
+    parser.add_argument('--samplingrate', help='sampling rate for FFT', default=256.0, type=float)
+
+    class Args:
+        device: str
+        blocksize: int
+        samplingrate: float
+
+    args = parser.parse_args(namespace=Args)
+
+    wavesystem = WaveSystem(
+        WaveSystemSettings(
+            wave_settings=WaveUnitSettings(
+                sampling_rate=args.samplingrate,
+            ),
+            unicorn_settings=UnicornSettings(
+                address=args.device,
+                n_samp=args.blocksize,
+            ),
+        )
+    )
+
+    app = Application(
+        ApplicationSettings(
+            port=8888,
+            name='WaveSystem'
+        )
+    )
+
+    app.panels = {
+        'wave_system': wavesystem.DASHBOARD.app,
+    }
+
+    ez.run(
+        WAVESYSTEM=wavesystem,
         APP=app,
     )
