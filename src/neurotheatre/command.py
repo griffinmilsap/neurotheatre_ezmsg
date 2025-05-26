@@ -12,7 +12,7 @@ from neurotheatre.injector import InjectorSettings
 from neurotheatre.audioloopback import AudioLoopbackSettings
 from neurotheatre.upsample import UpsampleSettings
 from neurotheatre.midiunit import MidiSettings
-from neurotheatre.waveunit import WaveUnitSettings
+from neurotheatre.bandunit import BandUnitSettings
 from neurotheatre.signal_to_audio import SignalToAudioSystem, SignalToAudioSystemSettings
 from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
 from neurotheatre.signal_to_band import WaveSystem, WaveSystemSettings
@@ -244,7 +244,7 @@ def to_band():
 
     wavesystem = WaveSystem(
         WaveSystemSettings(
-            wave_settings=WaveUnitSettings(
+            wave_settings=BandUnitSettings(
                 sampling_rate=args.samplingrate,
             ),
             unicorn_settings=UnicornSettings(

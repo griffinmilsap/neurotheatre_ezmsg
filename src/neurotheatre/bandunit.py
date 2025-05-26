@@ -5,7 +5,7 @@ from dataclasses import field
 import numpy as np
 from scipy.signal import welch
 
-class WaveUnitSettings(ez.Settings):
+class BandUnitSettings(ez.Settings):
     time_axis: str = "time"  # Name of the time axis in the signal
     sampling_rate: float = 256.0  # Sampling rate of the input signal
     bands: dict = field(default_factory=lambda: {  # Use default_factory for mutable default
@@ -16,8 +16,8 @@ class WaveUnitSettings(ez.Settings):
         "gamma": (30, 100),
     })
 
-class WaveUnit(ez.Unit):
-    SETTINGS = WaveUnitSettings
+class BandUnit(ez.Unit):
+    SETTINGS = BandUnitSettings
 
     INPUT_SIGNAL = ez.InputStream(AxisArray)
     OUTPUT_BAND = ez.OutputStream(str)  # Output the dominant frequency band as a string

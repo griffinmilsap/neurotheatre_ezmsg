@@ -1,17 +1,17 @@
 import ezmsg.core as ez
 from ezmsg.unicorn.dashboard import UnicornDashboard, UnicornDashboardSettings
 from ezmsg.unicorn.device import UnicornSettings
-from neurotheatre.waveunit import WaveUnit, WaveUnitSettings
+from neurotheatre.bandunit import BandUnit, BandUnitSettings
 
 class WaveSystemSettings(ez.Settings):
-    wave_settings: WaveUnitSettings
+    wave_settings: BandUnitSettings
     unicorn_settings: UnicornSettings
 
 class WaveSystem(ez.Collection):
     SETTINGS = WaveSystemSettings
 
     DASHBOARD = UnicornDashboard()
-    WAVE = WaveUnit()
+    WAVE = BandUnit()
 
     def configure(self) -> None:
         self.DASHBOARD.apply_settings(
@@ -23,6 +23,6 @@ class WaveSystem(ez.Collection):
 
     def network(self) -> ez.NetworkDefinition:
         return (
-            # Connect UnicornDashboard's OUTPUT_SIGNAL to WaveUnit's INPUT_SIGNAL
+            # Connect UnicornDashboard's OUTPUT_SIGNAL to BandUnit's INPUT_SIGNAL
             (self.DASHBOARD.OUTPUT_SIGNAL, self.WAVE.INPUT_SIGNAL),
         )
