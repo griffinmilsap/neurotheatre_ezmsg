@@ -24,6 +24,7 @@ museosc = "neurotheatre.command:museosc"
 toaudio = "neurotheatre.command:to_audio"
 tomidi = "neurotheatre.command:to_midi"
 toband = "neurotheatre.command:to_band"
+tojawclench = "neurotheatre.command:to_jawclench"
 
 [build-system]
 requires = ["hatchling"]

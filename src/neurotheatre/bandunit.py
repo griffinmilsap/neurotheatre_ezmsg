@@ -15,6 +15,10 @@ class BandUnitSettings(ez.Settings):
         "beta": (13, 30),
         "gamma": (30, 100),
     })
+    # Bands to detect and output True if detected
+    # The first element is the band name, 
+    # the second is a boolean indicating whether to return True/False or the band name
+    detect_band: tuple = ("gamma", False)
 
 class BandUnit(ez.Unit):
     SETTINGS = BandUnitSettings
@@ -47,7 +51,13 @@ class BandUnit(ez.Unit):
             # Find the dominant frequency band
             dominant_band = max(band_powers, key=band_powers.get)
 
-            print(f"Dominant band: {dominant_band} with power {band_powers[dominant_band]}")
-
-            # Yield the dominant frequency band as the output
-            yield self.OUTPUT_BAND, dominant_band
+            # Check if detect_band is set
+            target_band, return_bool = self.SETTINGS.detect_band
+            if return_bool:
+                print(f"Dominant band: {dominant_band} and target band: {target_band}, returning {dominant_band == target_band}")
+                # Yield True if the target band is the dominant band, else False
+                yield self.OUTPUT_BAND, dominant_band == target_band
+            else:
+                print(f"Dominant band: {dominant_band} with power {band_powers[dominant_band]}")
+                # Yield the dominant frequency band as a string
+                yield self.OUTPUT_BAND, dominant_band
