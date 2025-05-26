@@ -17,7 +17,7 @@ class WaveUnitSettings(ez.Settings):
     })
 
 class WaveUnit(ez.Unit):
-    SETTINGS: WaveUnitSettings
+    SETTINGS = WaveUnitSettings
 
     INPUT_SIGNAL = ez.InputStream(AxisArray)
     OUTPUT_BAND = ez.OutputStream(str)  # Output the dominant frequency band as a string

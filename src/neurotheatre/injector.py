@@ -16,8 +16,8 @@ class InjectorState( ez.State ):
 # This class injects and transforms signal from the BCI source
 # Useful to generate some dev/test data when enabled
 class Injector( ez.Unit ):
-    SETTINGS: InjectorSettings
-    STATE: InjectorState
+    SETTINGS = InjectorSettings
+    STATE = InjectorState
 
     INPUT_SIGNAL = ez.InputStream( AxisArray )
     OUTPUT_SIGNAL = ez.OutputStream( AxisArray )

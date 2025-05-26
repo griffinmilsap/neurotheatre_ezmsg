@@ -23,7 +23,7 @@ osc = "neurotheatre.command:osc"
 museosc = "neurotheatre.command:museosc"
 toaudio = "neurotheatre.command:to_audio"
 tomidi = "neurotheatre.command:to_midi"
-towave = "neurotheatre.command:to_wave"
+toband = "neurotheatre.command:to_band"
 
 [build-system]
 requires = ["hatchling"]

@@ -18,8 +18,8 @@ class MuseUnitState(ez.State):
 
 
 class MuseUnit(ez.Unit):
-    SETTINGS: MuseUnitSettings
-    STATE: MuseUnitState
+    SETTINGS = MuseUnitSettings
+    STATE = MuseUnitState
 
     OUTPUT_SIGNAL = ez.OutputStream(AxisArray)
 

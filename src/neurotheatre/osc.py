@@ -101,7 +101,7 @@ class MuseOSCSystemSettings(ez.Settings):
     plot_settings: TimeSeriesPlotSettings
 
 class MuseOSCSystem(ez.Collection):
-    SETTINGS: MuseOSCSystemSettings
+    SETTINGS = MuseOSCSystemSettings
 
     MUSE = MuseUnit()
     OSC = EEGOSC()

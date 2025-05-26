@@ -8,7 +8,7 @@ class WaveSystemSettings(ez.Settings):
     unicorn_settings: UnicornSettings
 
 class WaveSystem(ez.Collection):
-    SETTINGS: WaveSystemSettings
+    SETTINGS = WaveSystemSettings
 
     DASHBOARD = UnicornDashboard()
     WAVE = WaveUnit()

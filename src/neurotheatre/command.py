@@ -15,7 +15,7 @@ from neurotheatre.midiunit import MidiSettings
 from neurotheatre.waveunit import WaveUnitSettings
 from neurotheatre.signal_to_audio import SignalToAudioSystem, SignalToAudioSystemSettings
 from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
-from neurotheatre.signal_to_wave import WaveSystem, WaveSystemSettings
+from neurotheatre.signal_to_band import WaveSystem, WaveSystemSettings
 
 def osc():
 
@@ -229,7 +229,7 @@ def to_midi():
         APP=app,
     )
 
-def to_wave():
+def to_band():
     parser = argparse.ArgumentParser(description='Unicorn to dominant frequency wave')
     parser.add_argument('-d', '--device', help='Device address', default='simulator')
     parser.add_argument('--blocksize', help='EEG sample block size @ 256 Hz', default=10, type=int)
