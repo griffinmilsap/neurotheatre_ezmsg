@@ -12,9 +12,10 @@ from neurotheatre.injector import InjectorSettings
 from neurotheatre.audioloopback import AudioLoopbackSettings
 from neurotheatre.upsample import UpsampleSettings
 from neurotheatre.midiunit import MidiSettings
+from neurotheatre.bandunit import BandUnitSettings
 from neurotheatre.signal_to_audio import SignalToAudioSystem, SignalToAudioSystemSettings
 from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
-
+from neurotheatre.signal_to_band import WaveSystem, WaveSystemSettings
 def osc():
 
     parser = argparse.ArgumentParser(description = 'unicorn OSC client')
@@ -224,5 +225,90 @@ def to_midi():
 
     ez.run(
         SIGNALTOMIDI=signaltomidi,
+        APP=app,
+    )
+
+def to_band():
+    parser = argparse.ArgumentParser(description='Unicorn to dominant frequency wave')
+    parser.add_argument('-d', '--device', help='Device address', default='simulator')
+    parser.add_argument('--blocksize', help='EEG sample block size @ 256 Hz', default=10, type=int)
+    parser.add_argument('--samplingrate', help='sampling rate for FFT', default=256.0, type=float)
+
+    class Args:
+        device: str
+        blocksize: int
+        samplingrate: float
+
+    args = parser.parse_args(namespace=Args)
+
+    wavesystem = WaveSystem(
+        WaveSystemSettings(
+            wave_settings=BandUnitSettings(
+                sampling_rate=args.samplingrate,
+            ),
+            unicorn_settings=UnicornSettings(
+                address=args.device,
+                n_samp=args.blocksize,
+            ),
+        )
+    )
+
+    app = Application(
+        ApplicationSettings(
+            port=8888,
+            name='WaveSystem'
+        )
+    )
+
+    app.panels = {
+        'wave_system': wavesystem.DASHBOARD.app,
+    }
+
+    ez.run(
+        WAVESYSTEM=wavesystem,
+        APP=app,
+    )
+
+def to_jawclench():
+    parser = argparse.ArgumentParser(description='Unicorn to dominant frequency wave')
+    parser.add_argument('-d', '--device', help='Device address', default='simulator')
+    parser.add_argument('--blocksize', help='EEG sample block size @ 256 Hz', default=10, type=int)
+    parser.add_argument('--samplingrate', help='sampling rate for FFT', default=256.0, type=float)
+
+    class Args:
+        device: str
+        blocksize: int
+        samplingrate: float
+
+    args = parser.parse_args(namespace=Args)
+
+    jawclenchsystem = WaveSystem(
+        WaveSystemSettings(
+            wave_settings=BandUnitSettings(
+                sampling_rate=args.samplingrate,
+                # Detect gamma band and return True/False
+                # THis is the crux of Jaw Clench Detection logic
+                detect_band=('gamma', True),
+            ),
+            unicorn_settings=UnicornSettings(
+                address=args.device,
+                n_samp=args.blocksize,
+            ),
+        )
+    )
+
+    app = Application(
+        ApplicationSettings(
+            port=8888,
+            name='jawclenchsystem'
+        )
+    )
+
+    app.panels = {
+        'jawclench_system': jawclenchsystem.DASHBOARD.app,
+    }
+
+    ez.run(
+        JAWCLENCHSYSTEM=jawclenchsystem,
         APP=app,
     )
