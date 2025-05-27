@@ -35,7 +35,7 @@ currently following commands are implemented
 - toaudio
 - tomidi
 
-To run a specific command, do `uv run <command> <parameters>`
+To run a specific command, do `uv run <command> <parameters>`.  There is an associated command line interface with each command, use `-h` to access documentation related to the commandline interface.
 
 *Examples:* 
 - To run a server that sends IMU/EEG data to OSC-enabled software (like touchdesigner) run `uv run osc`
