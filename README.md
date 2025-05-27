@@ -38,6 +38,8 @@ currently following commands are implemented
 To run a specific command, do `uv run <command> <parameters>`
 
 *Examples:* 
+- To run a server that sends IMU/EEG data to OSC-enabled software (like touchdesigner) run `uv run osc`
+
 - To run the toaudio, with default parameters and input signal as simulator, you can do `uv run toaudio`. 
   This will open a new tab in browser, where you can see the signal (set filter order to 3, cuton fs = 1 and cutoff fs = 30 Hz to see the post processed signal). This will also play the audio for the signal.
 
