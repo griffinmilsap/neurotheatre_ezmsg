@@ -17,6 +17,10 @@ from ezmsg.util.generator import compose
 from ezmsg.sigproc.window import windowing
 from ezmsg.sigproc.butterworthfilter import butter
 from ezmsg.sigproc.affinetransform import common_rereference
+from ezmsg.sigproc.downsample import downsample
+from ezmsg.sigproc.aggregate import ranged_aggregate
+from ezmsg.sigproc.spectrum import spectrum
+from ezmsg.sigproc.scaler import scaler_np
 
 from neurotheatre.frequencydecoder import frequency_decode
 
@@ -25,11 +29,25 @@ class EEGOSCSettings(ez.Settings):
     port: int
     address: str = 'localhost'
     time_axis: str = 'time'
-    freqs: typing.List[float] = field(default_factory = lambda: [7.0, 9.0, 11.0])
+    ssvep_freqs: typing.List[float] = field(default_factory = lambda: [7.0, 9.0, 11.0]) # Hz
+    bands_tau: float = 5.0 # higher number = more history in bandpower z-score
+    bands: typing.Dict[str, typing.Tuple[float, float]] = field(
+        default_factory = lambda: {
+            'alpha': (8.0, 13.0), # Hz
+            'beta': (13.0, 30.0), # Hz
+            'gamma': (30.0, 50.0) # Hz
+        }
+    )
+
 
 class EEGOSCState(ez.State):
     client: SimpleUDPClient
-    pipeline: typing.Callable
+    preproc: typing.Callable
+    norm_bandpower: typing.Callable
+    ssvep: typing.Callable
+
+    bands: typing.List[typing.Tuple[float, float]]
+    band_names: typing.List[str]
 
 class EEGOSC(ez.Unit):
     SETTINGS = EEGOSCSettings
@@ -44,19 +62,46 @@ class EEGOSC(ez.Unit):
             port = self.SETTINGS.port
         )
 
-        self.STATE.pipeline = compose(
-            butter(axis = 'time', order = 3, cuton = 5.0, cutoff = 40.0),
+        self.STATE.preproc = compose(
+            butter(axis = 'time', order = 3, cuton = 1.0, cutoff = 50.0),
+            downsample(axis = 'time', factor = 2),
             common_rereference(axis = 'ch'),
+        )
+
+        self.STATE.band_names, self.STATE.bands = zip(*self.SETTINGS.bands.items())
+
+        self.STATE.norm_bandpower = compose(
+            windowing(axis = 'time', newaxis = 'window', window_dur = 2.0, window_shift = 0.5, zero_pad_until = 'input'),
+            spectrum(axis = 'time', out_axis = 'freq'),
+            ranged_aggregate(axis = 'freq', bands = self.STATE.bands),
+            scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
+        )
+
+        self.STATE.ssvep = compose(
             windowing(axis = 'time', newaxis = 'window', window_dur = 4.0, window_shift = 0.5, zero_pad_until = 'input'),
-            frequency_decode(time_axis = 'time', harmonics = 2, freqs = self.SETTINGS.freqs, softmax_beta = 5.0, window_axis = 'window', calc_corrs = True),
+            frequency_decode(time_axis = 'time', harmonics = 2, freqs = self.SETTINGS.ssvep_freqs, softmax_beta = 5.0, window_axis = 'window', calc_corrs = True),
         )
 
     @ez.subscriber(INPUT_SIGNAL)
     async def on_signal(self, msg: AxisArray):
-        posteriors = self.STATE.pipeline(msg)
+        preproc: AxisArray = self.STATE.preproc(msg)
+
+        # Send processed EEG
+        for aa in preproc.iter_over_axis(self.SETTINGS.time_axis):
+            self.STATE.client.send_message('/eeg/preproc', aa.data.tolist())
+
+        # Calculate normalized bandpower
+        norm_bandpower: AxisArray = self.STATE.norm_bandpower(preproc)
+        if norm_bandpower.data.size != 0:
+            for band, aa in zip(self.STATE.band_names, norm_bandpower.iter_over_axis('freq')):
+                self.STATE.client.send_message(f'/eeg/{band}', aa.data.mean())
+                ez.logger.info(f'{band}: {aa.data.mean()}')
+
+        # Calculate SSVEP posteriors
+        posteriors = self.STATE.ssvep(preproc)
         if posteriors.data.size != 0:
             probs = posteriors.isel(window = -1).data.flatten()
-            freq = self.SETTINGS.freqs[probs.argmax().item()]
+            freq = self.SETTINGS.ssvep_freqs[probs.argmax().item()]
             prob = probs[probs.argmax().item()].item()
             ez.logger.info(posteriors)
             self.STATE.client.send_message("/ssvep/focus", [freq, prob])
