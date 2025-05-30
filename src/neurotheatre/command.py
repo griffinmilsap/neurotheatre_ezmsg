@@ -6,16 +6,17 @@ from ezmsg.unicorn.device import UnicornSettings
 from ezmsg.panel.application import Application, ApplicationSettings
 from ezmsg.sigproc.butterworthfilter import ButterworthFilterSettings
 from ezmsg.panel.timeseriesplot import TimeSeriesPlotSettings
-from neurotheatre.osc import OSCSystem, OSCSystemSettings, EEGOSCSettings, MuseOSCSystem, MuseOSCSystemSettings
-from neurotheatre.muse.musedevice import MuseUnitSettings
+from neurotheatre.osc import OSCSystem, OSCSystemSettings, EEGOSCSettings
+
 from neurotheatre.injector import InjectorSettings
-from neurotheatre.audioloopback import AudioLoopbackSettings
-from neurotheatre.upsample import UpsampleSettings
+
+
 from neurotheatre.midiunit import MidiSettings
 from neurotheatre.bandunit import BandUnitSettings
-from neurotheatre.signal_to_audio import SignalToAudioSystem, SignalToAudioSystemSettings
+
 from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
 from neurotheatre.signal_to_band import WaveSystem, WaveSystemSettings
+
 def osc():
 
     parser = argparse.ArgumentParser(description = 'unicorn OSC client')
@@ -62,6 +63,9 @@ def osc():
     )
 
 def museosc():
+
+    from neurotheatre.osc import MuseOSCSystem, MuseOSCSystemSettings
+    from neurotheatre.muse.musedevice import MuseUnitSettings
 
     parser = argparse.ArgumentParser(description='Muse OSC client')
     parser.add_argument('-d', '--device', help='Muse device name (leave empty for auto-detection)', default=None)
@@ -110,6 +114,11 @@ def museosc():
     )
 
 def to_audio():
+
+    from neurotheatre.audioloopback import AudioLoopbackSettings
+
+    from neurotheatre.signal_to_audio import SignalToAudioSystem, SignalToAudioSystemSettings
+    from neurotheatre.upsample import UpsampleSettings
 
     parser = argparse.ArgumentParser(description = 'unicorn OSC client')
     parser.add_argument('-d', '--device', help = 'device address', default = 'simulator')
