@@ -9,11 +9,8 @@ from ezmsg.panel.timeseriesplot import TimeSeriesPlotSettings
 from neurotheatre.osc import OSCSystem, OSCSystemSettings, EEGOSCSettings
 
 from neurotheatre.injector import InjectorSettings
-
-
 from neurotheatre.midiunit import MidiSettings
 from neurotheatre.bandunit import BandUnitSettings
-
 from neurotheatre.signal_to_midi import SignalToMidiSystem, SignalToMidiSystemSettings
 from neurotheatre.signal_to_band import WaveSystem, WaveSystemSettings
 

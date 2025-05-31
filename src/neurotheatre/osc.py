@@ -1,13 +1,14 @@
 import typing
 import ezmsg.core as ez
+import numpy as np
 
 from dataclasses import field
+
+from vqf import VQF
 
 from ezmsg.unicorn.dashboard import UnicornDashboard, UnicornDashboardSettings
 from ezmsg.unicorn.device import UnicornSettings
 
-# from neurotheatre.muse.musedevice import MuseUnit, MuseUnitSettings
-# from ezmsg.panel.timeseriesplot import TimeSeriesPlotSettings, TimeSeriesPlot
 from ezmsg.util.messages.axisarray import AxisArray
 from ezmsg.util.debuglog import DebugLog
 
@@ -20,7 +21,9 @@ from ezmsg.sigproc.affinetransform import common_rereference
 from ezmsg.sigproc.downsample import downsample
 from ezmsg.sigproc.aggregate import ranged_aggregate
 from ezmsg.sigproc.spectrum import spectrum
-from ezmsg.sigproc.scaler import scaler_np
+from ezmsg.sigproc.scaler import scaler_np, scaler
+from ezmsg.sigproc.filter import filtergen
+from ezmsg.sigproc.math.abs import abs
 
 from neurotheatre.frequencydecoder import frequency_decode
 
@@ -29,8 +32,9 @@ class EEGOSCSettings(ez.Settings):
     port: int
     address: str = 'localhost'
     time_axis: str = 'time'
+    ch_axis: str = 'ch'
     ssvep_freqs: typing.List[float] = field(default_factory = lambda: [7.0, 9.0, 11.0]) # Hz
-    bands_tau: float = 5.0 # higher number = more history in bandpower z-score
+    bands_tau: float = 1.0 # higher number = more history in bandpower z-score
     bands: typing.Dict[str, typing.Tuple[float, float]] = field(
         default_factory = lambda: {
             'alpha': (8.0, 13.0), # Hz
@@ -45,7 +49,8 @@ class EEGOSCState(ez.State):
     preproc: typing.Callable
     norm_bandpower: typing.Callable
     ssvep: typing.Callable
-
+    enveloper: typing.Callable
+    vqf: VQF
     bands: typing.List[typing.Tuple[float, float]]
     band_names: typing.List[str]
 
@@ -63,24 +68,47 @@ class EEGOSC(ez.Unit):
         )
 
         self.STATE.preproc = compose(
-            butter(axis = 'time', order = 3, cuton = 1.0, cutoff = 50.0),
-            downsample(axis = 'time', factor = 2),
-            common_rereference(axis = 'ch'),
+            butter(axis = self.SETTINGS.time_axis, order = 3, cuton = 1.0, cutoff = 50.0),
+            downsample(axis = self.SETTINGS.time_axis, target_rate = 125.0),
+            common_rereference(axis = self.SETTINGS.ch_axis),
         )
 
         self.STATE.band_names, self.STATE.bands = zip(*self.SETTINGS.bands.items())
 
         self.STATE.norm_bandpower = compose(
-            windowing(axis = 'time', newaxis = 'window', window_dur = 2.0, window_shift = 0.5, zero_pad_until = 'input'),
-            spectrum(axis = 'time', out_axis = 'freq'),
+            windowing(axis = self.SETTINGS.time_axis, newaxis = 'window', window_dur = 2.0, window_shift = 0.5, zero_pad_until = 'input'),
+            spectrum(axis = self.SETTINGS.time_axis, out_axis = 'freq'),
             ranged_aggregate(axis = 'freq', bands = self.STATE.bands),
             scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
         )
 
         self.STATE.ssvep = compose(
-            windowing(axis = 'time', newaxis = 'window', window_dur = 4.0, window_shift = 0.5, zero_pad_until = 'input'),
-            frequency_decode(time_axis = 'time', harmonics = 2, freqs = self.SETTINGS.ssvep_freqs, softmax_beta = 5.0, window_axis = 'window', calc_corrs = True),
+            windowing(axis = self.SETTINGS.time_axis, newaxis = 'window', window_dur = 4.0, window_shift = 0.5, zero_pad_until = 'input'),
+            frequency_decode(time_axis = self.SETTINGS.time_axis, harmonics = 2, freqs = self.SETTINGS.ssvep_freqs, softmax_beta = 5.0, window_axis = 'window', calc_corrs = True),
         )
+
+        self.STATE.enveloper = compose(
+            # 1. Remove Powerline Noise
+            butter(axis = self.SETTINGS.time_axis, order = 3, cutoff = 58.0, cuton = 62.0),
+            # 2. Temporal Differential
+            filtergen(
+                axis = self.SETTINGS.time_axis, 
+                coefs = (
+                    np.array([1.0, -1.0]), 
+                    np.array([1.0, 0.0])), 
+                coef_type = 'ba'
+            ),
+            # 3. Rectify
+            abs(),
+            # 4. Smooth
+            butter(axis = self.SETTINGS.time_axis, order = 3, cutoff = 10.0),
+            # 5. Downsample
+            downsample(axis = self.SETTINGS.time_axis, target_rate = 25.0),
+            # 6. Average channels
+            ranged_aggregate(axis = self.SETTINGS.ch_axis, bands = [(0, 7)]),
+        )
+
+        self.STATE.vqf = VQF(1.0)
 
     @ez.subscriber(INPUT_SIGNAL)
     async def on_signal(self, msg: AxisArray):
@@ -93,6 +121,7 @@ class EEGOSC(ez.Unit):
         # Calculate normalized bandpower
         norm_bandpower: AxisArray = self.STATE.norm_bandpower(preproc)
         if norm_bandpower.data.size != 0:
+            # ez.logger.info(norm_bandpower.data)
             for band, aa in zip(self.STATE.band_names, norm_bandpower.iter_over_axis('freq')):
                 self.STATE.client.send_message(f'/eeg/{band}', aa.data.mean())
                 ez.logger.info(f'{band}: {aa.data.mean()}')
@@ -103,14 +132,32 @@ class EEGOSC(ez.Unit):
             probs = posteriors.isel(window = -1).data.flatten()
             freq = self.SETTINGS.ssvep_freqs[probs.argmax().item()]
             prob = probs[probs.argmax().item()].item()
-            ez.logger.info(posteriors)
+            # ez.logger.info(posteriors)
             self.STATE.client.send_message("/ssvep/focus", [freq, prob])
+
+        # Calculate Jaw Clench Envelope
+        envelope: AxisArray = self.STATE.enveloper(msg)
+        if envelope.data.size != 0:
+            for aa in envelope.iter_over_axis(self.SETTINGS.time_axis):
+                self.STATE.client.send_message('/eeg/envelope', aa.data.item())
 
     @ez.subscriber(INPUT_MOTION)
     async def on_motion(self, msg: AxisArray):
-        for aa in msg.iter_over_axis(self.SETTINGS.time_axis):
-            self.STATE.client.send_message('/imu/accel', aa.data[0:3].tolist())
-            self.STATE.client.send_message('/imu/gyro', aa.data[3:6].tolist())
+        time_axis = msg.ax(self.SETTINGS.time_axis)
+        if time_axis.axis.gain != self.STATE.vqf.coeffs['gyrTs']:
+            self.STATE.vqf = VQF(time_axis.axis.gain)
+
+        data = msg.as2d(self.SETTINGS.time_axis) # guarantees time axis is dim 0
+        acc = np.ascontiguousarray(data[:, :3] * 9.8) # Convert from g to m/s^2
+        gyr = np.ascontiguousarray(np.deg2rad(data[:, 3:6])) # Convert from deg/sec to rad/sec
+
+        # Output is quaternions in [w x y z] ("scalar first") format
+        orientation = self.STATE.vqf.updateBatch(gyr, acc)['quat6D'][-1, :]
+
+        aa = msg.isel({self.SETTINGS.time_axis: -1})
+        self.STATE.client.send_message('/imu/accel', aa.data[0:3].tolist())
+        self.STATE.client.send_message('/imu/gyro', aa.data[3:6].tolist())
+        self.STATE.client.send_message('/imu/orientation', orientation.flatten().tolist())
 
 
 class OSCSystemSettings(ez.Settings):
@@ -138,27 +185,3 @@ class OSCSystem(ez.Collection):
             (self.DASHBOARD.OUTPUT_SIGNAL, self.OSC.INPUT_SIGNAL),
             (self.DASHBOARD.OUTPUT_MOTION, self.OSC.INPUT_MOTION),
         )
-
-
-# class MuseOSCSystemSettings(ez.Settings):
-#     muse_settings: MuseUnitSettings
-#     osc_settings: EEGOSCSettings
-#     plot_settings: TimeSeriesPlotSettings
-
-# class MuseOSCSystem(ez.Collection):
-#     SETTINGS = MuseOSCSystemSettings
-
-#     MUSE = MuseUnit()
-#     OSC = EEGOSC()
-#     PLOT = TimeSeriesPlot()
-
-#     def configure(self) -> None:
-#         self.MUSE.apply_settings(self.SETTINGS.muse_settings)
-#         self.OSC.apply_settings(self.SETTINGS.osc_settings)
-#         self.PLOT.apply_settings(self.SETTINGS.plot_settings)
-
-#     def network(self) -> ez.NetworkDefinition:
-#         return (
-#             (self.MUSE.OUTPUT_SIGNAL, self.OSC.INPUT_SIGNAL),  # Connect Muse output to OSC input
-#             (self.MUSE.OUTPUT_SIGNAL, self.PLOT.INPUT_SIGNAL),
-#         )
