@@ -12,7 +12,7 @@ dependencies = [
     "python-osc>=1.9.3",
     "scipy>=1.13.1",
     "ezmsg-unicorn[dashboard]",
-    "ezmsg-sigproc<2.0.0",
+    "ezmsg-sigproc==1.5.0",
     "matplotlib",
 ]
 

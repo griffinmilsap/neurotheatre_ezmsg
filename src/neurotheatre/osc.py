@@ -69,7 +69,7 @@ class EEGOSC(ez.Unit):
 
         self.STATE.preproc = compose(
             butter(axis = self.SETTINGS.time_axis, order = 3, cuton = 1.0, cutoff = 50.0),
-            downsample(axis = self.SETTINGS.time_axis, target_rate = 125.0),
+            downsample(axis = self.SETTINGS.time_axis, factor = 2),
             common_rereference(axis = self.SETTINGS.ch_axis),
         )
 
@@ -103,7 +103,7 @@ class EEGOSC(ez.Unit):
             # 4. Smooth
             butter(axis = self.SETTINGS.time_axis, order = 3, cutoff = 10.0),
             # 5. Downsample
-            downsample(axis = self.SETTINGS.time_axis, target_rate = 25.0),
+            downsample(axis = self.SETTINGS.time_axis, factor = 10),
             # 6. Average channels
             ranged_aggregate(axis = self.SETTINGS.ch_axis, bands = [(0, 7)]),
         )
@@ -132,7 +132,7 @@ class EEGOSC(ez.Unit):
             probs = posteriors.isel(window = -1).data.flatten()
             freq = self.SETTINGS.ssvep_freqs[probs.argmax().item()]
             prob = probs[probs.argmax().item()].item()
-            # ez.logger.info(posteriors)
+            ez.logger.info(posteriors)
             self.STATE.client.send_message("/ssvep/focus", [freq, prob])
 
         # Calculate Jaw Clench Envelope
