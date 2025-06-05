@@ -58,7 +58,7 @@ class EEGOSCState(ez.State):
     client: SimpleUDPClient
     jaw_client: socket.socket
     preproc: typing.Callable
-    norm_bandpower: typing.Callable
+    bandpower: typing.Callable
     ssvep: typing.Callable
     enveloper: typing.Callable
     vqf: VQF
@@ -90,7 +90,7 @@ class EEGOSC(ez.Unit):
 
         self.STATE.band_names, self.STATE.bands = zip(*self.SETTINGS.bands.items())
 
-        self.STATE.norm_bandpower = compose(
+        self.STATE.bandpower = compose(
             windowing(axis = self.SETTINGS.time_axis, newaxis = 'window', window_dur = 2.0, window_shift = 0.5, zero_pad_until = 'input'),
             spectrum(axis = self.SETTINGS.time_axis, out_axis = 'freq'),
             ranged_aggregate(axis = 'freq', bands = self.STATE.bands),
