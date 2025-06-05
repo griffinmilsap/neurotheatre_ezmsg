@@ -1,6 +1,7 @@
 import typing
 import ezmsg.core as ez
 import numpy as np
+import asyncio
 
 from dataclasses import field
 
@@ -24,6 +25,9 @@ from ezmsg.sigproc.spectrum import spectrum
 from ezmsg.sigproc.scaler import scaler_np
 from ezmsg.sigproc.filter import filtergen
 from ezmsg.sigproc.math.abs import abs
+
+import json
+from ezmsg.util.messagecodec import MessageEncoder
 
 from neurotheatre.frequencydecoder import frequency_decode
 import struct
@@ -53,6 +57,7 @@ class EEGOSCSettings(ez.Settings):
     )
     jaw_port: int = 8002 # Port for jaw clench detection
     jaw_thresh: float = 20 # Threshold for jaw clench detection in the envelope (in mv)
+    imu_port: int = 9001
 
 class EEGOSCState(ez.State):
     client: SimpleUDPClient
@@ -65,7 +70,7 @@ class EEGOSCState(ez.State):
     bands: typing.List[typing.Tuple[float, float]]
     band_names: typing.List[str]
     handstate: str = 'rest'  # State of the hand (rest, open, close)
-    # tempfile: typing.TextIO
+    imu_client: socket.socket
 
 class EEGOSC(ez.Unit):
     SETTINGS = EEGOSCSettings
@@ -95,6 +100,7 @@ class EEGOSC(ez.Unit):
             spectrum(axis = self.SETTINGS.time_axis, out_axis = 'freq'),
             ranged_aggregate(axis = 'freq', bands = self.STATE.bands),
             # scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
+            butter(axis = 'window', order = 2, cutoff = 0.25)
         )
 
         self.STATE.ssvep = compose(
@@ -125,6 +131,7 @@ class EEGOSC(ez.Unit):
 
         self.STATE.vqf = VQF(1.0)
 
+        self.STATE.imu_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     # Debugging the hand packet
     def read_hand_data(self, data):
@@ -145,11 +152,20 @@ class EEGOSC(ez.Unit):
 
         # Calculate normalized bandpower
         bandpower: AxisArray = self.STATE.bandpower(preproc)
+
+        band_dict: typing.Dict[str, float] = {}
         if bandpower.data.size != 0:
             ez.logger.info(bandpower)
             for band, aa in zip(self.STATE.band_names, bandpower.iter_over_axis('freq')):
-                self.STATE.client.send_message(f'/eeg/{band}', aa.data.mean())
-                ez.logger.info(f'{band}: {aa.data.mean()}')
+                value = aa.data.mean()
+                self.STATE.client.send_message(f'/eeg/{band}', value)
+                band_dict[band] = value
+                ez.logger.info(f'{band}: {value}')
+
+        mean_power = np.mean(np.array([v for v in band_dict.values()])).item()
+        for band, value in band_dict.items():
+            self.STATE.client.send_message(f'/eeg/{band}_norm', value / mean_power)
+            ez.logger.info(f'{band}_norm: {value / mean_power}')
 
         # Calculate SSVEP posteriors
         posteriors = self.STATE.ssvep(preproc)
@@ -211,7 +227,12 @@ class EEGOSC(ez.Unit):
         self.STATE.client.send_message('/imu/accel', aa.data[0:3].tolist())
         self.STATE.client.send_message('/imu/gyro', aa.data[3:6].tolist())
         self.STATE.client.send_message('/imu/orientation', orientation.flatten().tolist())
+        # TODO: Add orientation
 
+        self.STATE.imu_client.sendto(
+            json.dumps(msg, cls = MessageEncoder).encode(), 
+            (self.SETTINGS.address, self.SETTINGS.imu_port)
+        )
 
 
 class OSCSystemSettings(ez.Settings):
