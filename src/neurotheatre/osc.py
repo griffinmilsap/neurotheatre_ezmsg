@@ -21,7 +21,7 @@ from ezmsg.sigproc.affinetransform import common_rereference
 from ezmsg.sigproc.downsample import downsample
 from ezmsg.sigproc.aggregate import ranged_aggregate
 from ezmsg.sigproc.spectrum import spectrum
-from ezmsg.sigproc.scaler import scaler_np, scaler
+from ezmsg.sigproc.scaler import scaler_np
 from ezmsg.sigproc.filter import filtergen
 from ezmsg.sigproc.math.abs import abs
 
@@ -65,6 +65,7 @@ class EEGOSCState(ez.State):
     bands: typing.List[typing.Tuple[float, float]]
     band_names: typing.List[str]
     handstate: str = 'rest'  # State of the hand (rest, open, close)
+    # tempfile: typing.TextIO
 
 class EEGOSC(ez.Unit):
     SETTINGS = EEGOSCSettings
@@ -93,7 +94,7 @@ class EEGOSC(ez.Unit):
             windowing(axis = self.SETTINGS.time_axis, newaxis = 'window', window_dur = 2.0, window_shift = 0.5, zero_pad_until = 'input'),
             spectrum(axis = self.SETTINGS.time_axis, out_axis = 'freq'),
             ranged_aggregate(axis = 'freq', bands = self.STATE.bands),
-            scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
+            # scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
         )
 
         self.STATE.ssvep = compose(
@@ -123,6 +124,11 @@ class EEGOSC(ez.Unit):
         )
 
         self.STATE.vqf = VQF(1.0)
+
+        # self.STATE.tempfile = open('imu.csv', 'w')
+
+    # def shutdown(self):
+    #     self.STATE.tempfile.close()
     
     # Debugging the hand packet
     def read_hand_data(self, data):
@@ -144,7 +150,6 @@ class EEGOSC(ez.Unit):
         # Calculate normalized bandpower
         norm_bandpower: AxisArray = self.STATE.norm_bandpower(preproc)
         if norm_bandpower.data.size != 0:
-            # ez.logger.info(norm_bandpower.data)
             for band, aa in zip(self.STATE.band_names, norm_bandpower.iter_over_axis('freq')):
                 self.STATE.client.send_message(f'/eeg/{band}', aa.data.mean())
                 ez.logger.info(f'{band}: {aa.data.mean()}')
@@ -195,6 +200,9 @@ class EEGOSC(ez.Unit):
         if time_axis.axis.gain != self.STATE.vqf.coeffs['gyrTs']:
             self.STATE.vqf = VQF(time_axis.axis.gain)
 
+        # for aa in msg.iter_over_axis('time'):
+        #   ...
+
         data = msg.as2d(self.SETTINGS.time_axis) # guarantees time axis is dim 0
         acc = np.ascontiguousarray(data[:, :3] * 9.8) # Convert from g to m/s^2
         gyr = np.ascontiguousarray(np.deg2rad(data[:, 3:6])) # Convert from deg/sec to rad/sec
@@ -206,6 +214,7 @@ class EEGOSC(ez.Unit):
         self.STATE.client.send_message('/imu/accel', aa.data[0:3].tolist())
         self.STATE.client.send_message('/imu/gyro', aa.data[3:6].tolist())
         self.STATE.client.send_message('/imu/orientation', orientation.flatten().tolist())
+
 
 
 class OSCSystemSettings(ez.Settings):
