@@ -36,7 +36,7 @@ class EEGOSCSettings(ez.Settings):
     ch_axis: str = 'ch'
     ssvep_dur: float = 8.0 # sec
     ssvep_freqs: typing.List[float] = field(default_factory = lambda: [7.0, 9.0, 11.0]) # Hz
-    bands_tau: float = 1.0 # higher number = more history in bandpower z-score
+    bands_tau: float = 5.0 # higher number = more history in bandpower z-score
     bands: typing.Dict[str, typing.Tuple[float, float]] = field(
         default_factory = lambda: {
             'alpha': (8.0, 13.0), # Hz
@@ -94,7 +94,7 @@ class EEGOSC(ez.Unit):
             windowing(axis = self.SETTINGS.time_axis, newaxis = 'window', window_dur = 2.0, window_shift = 0.5, zero_pad_until = 'input'),
             spectrum(axis = self.SETTINGS.time_axis, out_axis = 'freq'),
             ranged_aggregate(axis = 'freq', bands = self.STATE.bands),
-            # scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
+            scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
         )
 
         self.STATE.ssvep = compose(
