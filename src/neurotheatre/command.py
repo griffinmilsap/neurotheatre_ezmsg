@@ -21,12 +21,13 @@ def osc():
     parser.add_argument('-a', '--address', help = 'remote OSC server address', default = '127.0.0.1')
     parser.add_argument('-p', '--port', help = 'remote OSC server port (UDP)', default = 8000, type = int)
     parser.add_argument('--blocksize', help = 'eeg sample block size @ 200 Hz', default = 10, type = int)
-
+    parser.add_argument('--jaw_thresh', help = 'Jaw Clenching decoding threshold frequency', default = '20.0', type = float)
     class Args:
         device: str
         address: str
         port: int
         blocksize: int
+        jaw_thresh: float
 
     args = parser.parse_args(namespace = Args)
 
@@ -34,7 +35,8 @@ def osc():
         OSCSystemSettings(
             osc_settings = EEGOSCSettings(
                 address = args.address,
-                port = args.port
+                port = args.port,
+                jaw_thresh= args.jaw_thresh
             ),
             unicorn_settings = UnicornSettings(
                 address = args.device,

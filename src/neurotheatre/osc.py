@@ -162,27 +162,31 @@ class EEGOSC(ez.Unit):
         if envelope.data.size != 0:
             for aa in envelope.iter_over_axis(self.SETTINGS.time_axis):
                 self.STATE.client.send_message('/eeg/envelope', aa.data.item())
+                #print(f'Jaw Clench Envelope: {aa.data.item()}')
                 # Check if the envelope exceeds the jaw threshold
                 if aa.data.item() > self.SETTINGS.jaw_thresh:
+                    #print("Jaw clench detected!")
                     #send packet to jaw clench port
-                    if self.STATE.handstate == 'close':
+                    if self.STATE.handstate == 'rest':
+                        self.STATE.handstate = 'close'
+                    elif self.STATE.handstate == 'close':
                         self.STATE.handstate = 'open'
                     elif self.STATE.handstate == 'open':
                         self.STATE.handstate = 'close'
                 else:
                     self.STATE.handstate = 'rest'
-                    hand_packet_data = [
+                hand_packet_data = [
                         struct.pack('<B', self.SETTINGS.handstate_dict[self.STATE.handstate]),  # Movement (1 byte)
                         struct.pack('<f', 0.5),  # Speed (4 bytes)
                         struct.pack('<H', 100)  # Duration (2 bytes)
                     ]
 
-                    hand_packet = b''.join(hand_packet_data)
-                    #self.read_hand_data(hand_packet)
-                    self.STATE.jaw_client.sendto(
-                        hand_packet, 
-                        (self.SETTINGS.address, self.SETTINGS.jaw_port)
-                    )
+                hand_packet = b''.join(hand_packet_data)
+                #self.read_hand_data(hand_packet)
+                self.STATE.jaw_client.sendto(
+                    hand_packet, 
+                    (self.SETTINGS.address, self.SETTINGS.jaw_port)
+                )
 
     @ez.subscriber(INPUT_MOTION)
     async def on_motion(self, msg: AxisArray):
