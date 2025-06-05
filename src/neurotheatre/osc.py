@@ -33,6 +33,7 @@ class EEGOSCSettings(ez.Settings):
     address: str = 'localhost'
     time_axis: str = 'time'
     ch_axis: str = 'ch'
+    ssvep_dur: float = 8.0 # sec
     ssvep_freqs: typing.List[float] = field(default_factory = lambda: [7.0, 9.0, 11.0]) # Hz
     bands_tau: float = 1.0 # higher number = more history in bandpower z-score
     bands: typing.Dict[str, typing.Tuple[float, float]] = field(
