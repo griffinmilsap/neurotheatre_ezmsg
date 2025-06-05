@@ -94,7 +94,7 @@ class EEGOSC(ez.Unit):
             windowing(axis = self.SETTINGS.time_axis, newaxis = 'window', window_dur = 2.0, window_shift = 0.5, zero_pad_until = 'input'),
             spectrum(axis = self.SETTINGS.time_axis, out_axis = 'freq'),
             ranged_aggregate(axis = 'freq', bands = self.STATE.bands),
-            scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
+            # scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
         )
 
         self.STATE.ssvep = compose(
@@ -124,11 +124,7 @@ class EEGOSC(ez.Unit):
         )
 
         self.STATE.vqf = VQF(1.0)
-
-        # self.STATE.tempfile = open('imu.csv', 'w')
-
-    # def shutdown(self):
-    #     self.STATE.tempfile.close()
+        
     
     # Debugging the hand packet
     def read_hand_data(self, data):
