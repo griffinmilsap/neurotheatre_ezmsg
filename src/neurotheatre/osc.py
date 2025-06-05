@@ -124,7 +124,7 @@ class EEGOSC(ez.Unit):
         )
 
         self.STATE.vqf = VQF(1.0)
-        
+
     
     # Debugging the hand packet
     def read_hand_data(self, data):
@@ -144,9 +144,10 @@ class EEGOSC(ez.Unit):
             self.STATE.client.send_message('/eeg/preproc', aa.data.tolist())
 
         # Calculate normalized bandpower
-        norm_bandpower: AxisArray = self.STATE.norm_bandpower(preproc)
-        if norm_bandpower.data.size != 0:
-            for band, aa in zip(self.STATE.band_names, norm_bandpower.iter_over_axis('freq')):
+        bandpower: AxisArray = self.STATE.bandpower(preproc)
+        if bandpower.data.size != 0:
+            ez.logger.info(bandpower)
+            for band, aa in zip(self.STATE.band_names, bandpower.iter_over_axis('freq')):
                 self.STATE.client.send_message(f'/eeg/{band}', aa.data.mean())
                 ez.logger.info(f'{band}: {aa.data.mean()}')
 
