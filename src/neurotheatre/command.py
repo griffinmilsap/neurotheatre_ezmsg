@@ -18,14 +18,17 @@ def osc():
 
     parser = argparse.ArgumentParser(description = 'unicorn OSC client')
     parser.add_argument('-d', '--device', help = 'device address', default = 'simulator')
-    parser.add_argument('-a', '--address', help = 'remote OSC server address', default = '127.0.0.1')
-    parser.add_argument('-p', '--port', help = 'remote OSC server port (UDP)', default = 8000, type = int)
+    parser.add_argument('--td-address', help = 'remote OSC server address, default: 127.0.0.1:8000', default = '127.0.0.1:8000')
+    parser.add_argument('--imu-address', help = 'remote imu server address, default: 127.0.0.1:9001', default = '127.0.0.1:9001')
+    parser.add_argument('--hand-address', help = 'remote hand server address, default: 127.0.0.1:8002', default = '127.0.0.1:8002')
     parser.add_argument('--blocksize', help = 'eeg sample block size @ 200 Hz', default = 10, type = int)
     parser.add_argument('--jaw_thresh', help = 'Jaw Clenching decoding threshold frequency', default = '20.0', type = float)
+
     class Args:
         device: str
-        address: str
-        port: int
+        td_address: str
+        imu_address: str
+        hand_address: str
         blocksize: int
         jaw_thresh: float
 
@@ -34,9 +37,10 @@ def osc():
     osc = OSCSystem(
         OSCSystemSettings(
             osc_settings = EEGOSCSettings(
-                address = args.address,
-                port = args.port,
-                jaw_thresh= args.jaw_thresh
+                td_address = args.td_address,
+                imu_address = args.imu_address,
+                hand_address = args.hand_address,
+                jaw_thresh = args.jaw_thresh
             ),
             unicorn_settings = UnicornSettings(
                 address = args.device,

@@ -1,7 +1,6 @@
 import typing
 import ezmsg.core as ez
 import numpy as np
-import asyncio
 
 from scipy.spatial.transform import Rotation
 
@@ -36,8 +35,10 @@ import struct
 import socket
 
 class EEGOSCSettings(ez.Settings):
-    port: int
-    address: str = 'localhost'
+    td_address: str = '127.0.0.1:8000'
+    imu_address: str = '127.0.0.1:9001'
+    hand_address: str = '127.0.0.1:8002'
+
     time_axis: str = 'time'
     ch_axis: str = 'ch'
     ssvep_dur: float = 8.0 # sec
@@ -62,8 +63,6 @@ class EEGOSCSettings(ez.Settings):
     imu_port: int = 9001
 
 class EEGOSCState(ez.State):
-    client: SimpleUDPClient
-    jaw_client: socket.socket
     preproc: typing.Callable
     bandpower: typing.Callable
     ssvep: typing.Callable
@@ -72,7 +71,10 @@ class EEGOSCState(ez.State):
     bands: typing.List[typing.Tuple[float, float]]
     band_names: typing.List[str]
     handstate: str = 'rest'  # State of the hand (rest, open, close)
+
+    td_client: SimpleUDPClient
     imu_client: socket.socket
+    hand_client: socket.socket
 
 class EEGOSC(ez.Unit):
     SETTINGS = EEGOSCSettings
@@ -82,12 +84,8 @@ class EEGOSC(ez.Unit):
     INPUT_MOTION = ez.InputStream(AxisArray)
 
     async def initialize(self) -> None:
-        self.STATE.client = SimpleUDPClient(
-            address = self.SETTINGS.address, 
-            port = self.SETTINGS.port
-        )
-
-        self.STATE.jaw_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        address, port = tuple(self.SETTINGS.td_address.split(':'))
+        self.STATE.td_client = SimpleUDPClient(address = address, port = int(port))
 
         self.STATE.preproc = compose(
             butter(axis = self.SETTINGS.time_axis, order = 3, cuton = 1.0, cutoff = 50.0),
@@ -133,6 +131,7 @@ class EEGOSC(ez.Unit):
 
         self.STATE.vqf = VQF(1.0)
 
+        self.STATE.hand_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.STATE.imu_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     # Debugging the hand packet
@@ -150,23 +149,23 @@ class EEGOSC(ez.Unit):
 
         # Send processed EEG
         for aa in preproc.iter_over_axis(self.SETTINGS.time_axis):
-            self.STATE.client.send_message('/eeg/preproc', aa.data.tolist())
+            self.STATE.td_client.send_message('/eeg/preproc', aa.data.tolist())
 
         # Calculate normalized bandpower
         bandpower: AxisArray = self.STATE.bandpower(preproc)
 
         band_dict: typing.Dict[str, float] = {}
         if bandpower.data.size != 0:
-            ez.logger.info(bandpower)
+            # ez.logger.info(bandpower)
             for band, aa in zip(self.STATE.band_names, bandpower.iter_over_axis('freq')):
                 value = aa.data.mean()
-                self.STATE.client.send_message(f'/eeg/{band}', value)
+                self.STATE.td_client.send_message(f'/eeg/{band}', value)
                 band_dict[band] = value
                 ez.logger.info(f'{band}: {value}')
 
         mean_power = np.mean(np.array([v for v in band_dict.values()])).item()
         for band, value in band_dict.items():
-            self.STATE.client.send_message(f'/eeg/{band}_norm', value / mean_power)
+            self.STATE.td_client.send_message(f'/eeg/{band}_norm', value / mean_power)
             ez.logger.info(f'{band}_norm: {value / mean_power}')
 
         # Calculate SSVEP posteriors
@@ -176,13 +175,14 @@ class EEGOSC(ez.Unit):
             freq = self.SETTINGS.ssvep_freqs[probs.argmax().item()]
             prob = probs[probs.argmax().item()].item()
             ez.logger.info(posteriors)
-            self.STATE.client.send_message("/ssvep/focus", [freq, prob])
+            self.STATE.td_client.send_message("/ssvep/focus", [freq, prob])
 
         # Calculate Jaw Clench Envelope
         envelope: AxisArray = self.STATE.enveloper(msg)
         if envelope.data.size != 0:
             for aa in envelope.iter_over_axis(self.SETTINGS.time_axis):
-                self.STATE.client.send_message('/eeg/envelope', aa.data.item())
+                self.STATE.td_client.send_message('/eeg/envelope', aa.data.item())
+
                 #print(f'Jaw Clench Envelope: {aa.data.item()}')
                 # Check if the envelope exceeds the jaw threshold
                 if aa.data.item() > self.SETTINGS.jaw_thresh:
@@ -196,6 +196,7 @@ class EEGOSC(ez.Unit):
                         self.STATE.handstate = 'close'
                 else:
                     self.STATE.handstate = 'rest'
+
                 hand_packet_data = [
                         struct.pack('<B', self.SETTINGS.handstate_dict[self.STATE.handstate]),  # Movement (1 byte)
                         struct.pack('<f', 0.5),  # Speed (4 bytes)
@@ -204,19 +205,14 @@ class EEGOSC(ez.Unit):
 
                 hand_packet = b''.join(hand_packet_data)
                 #self.read_hand_data(hand_packet)
-                self.STATE.jaw_client.sendto(
-                    hand_packet, 
-                    (self.SETTINGS.address, self.SETTINGS.jaw_port)
-                )
+                hand_addr, hand_port = tuple(self.SETTINGS.hand_address.split(':'))
+                self.STATE.hand_client.sendto(hand_packet, (hand_addr, int(hand_port)))
 
     @ez.subscriber(INPUT_MOTION)
     async def on_motion(self, msg: AxisArray):
         time_axis = msg.ax(self.SETTINGS.time_axis)
         if time_axis.axis.gain != self.STATE.vqf.coeffs['gyrTs']:
             self.STATE.vqf = VQF(time_axis.axis.gain)
-
-        # for aa in msg.iter_over_axis('time'):
-        #   ...
 
         data = msg.as2d(self.SETTINGS.time_axis) # guarantees time axis is dim 0
         acc = np.ascontiguousarray(data[:, :3] * 9.8) # Convert from g to m/s^2
@@ -228,14 +224,15 @@ class EEGOSC(ez.Unit):
         pitch, roll, yaw = rotation.as_euler('xyz') / np.pi # (-1.0 - 1.0)
 
         aa = msg.isel({self.SETTINGS.time_axis: -1})
-        self.STATE.client.send_message('/imu/accel', aa.data[0:3].tolist())
-        self.STATE.client.send_message('/imu/gyro', aa.data[3:6].tolist())
-        self.STATE.client.send_message('/imu/orientation', orientation.flatten().tolist())
-        self.STATE.client.send_message('/imu/orientation_euler', [yaw, pitch, roll])
+        self.STATE.td_client.send_message('/imu/accel', aa.data[0:3].tolist())
+        self.STATE.td_client.send_message('/imu/gyro', aa.data[3:6].tolist())
+        self.STATE.td_client.send_message('/imu/orientation', orientation.flatten().tolist())
+        self.STATE.td_client.send_message('/imu/orientation_euler', [yaw, pitch, roll])
 
+        imu_addr, imu_port = self.SETTINGS.imu_address.split(':')
         self.STATE.imu_client.sendto(
             json.dumps(msg, cls = MessageEncoder).encode(), 
-            (self.SETTINGS.address, self.SETTINGS.imu_port)
+            (imu_addr, int(imu_port))
         )
 
 
