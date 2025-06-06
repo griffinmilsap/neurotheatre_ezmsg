@@ -3,6 +3,8 @@ import ezmsg.core as ez
 import numpy as np
 import asyncio
 
+from scipy.spatial.transform import Rotation
+
 from dataclasses import field
 
 from vqf import VQF
@@ -222,12 +224,14 @@ class EEGOSC(ez.Unit):
 
         # Output is quaternions in [w x y z] ("scalar first") format
         orientation = self.STATE.vqf.updateBatch(gyr, acc)['quat6D'][-1, :]
+        rotation = Rotation.from_quat(orientation, scalar_first = True)
+        pitch, roll, yaw = rotation.as_euler('xyz') / np.pi # (-1.0 - 1.0)
 
         aa = msg.isel({self.SETTINGS.time_axis: -1})
         self.STATE.client.send_message('/imu/accel', aa.data[0:3].tolist())
         self.STATE.client.send_message('/imu/gyro', aa.data[3:6].tolist())
         self.STATE.client.send_message('/imu/orientation', orientation.flatten().tolist())
-        # TODO: Add orientation
+        self.STATE.client.send_message('/imu/orientation_euler', [yaw, pitch, roll])
 
         self.STATE.imu_client.sendto(
             json.dumps(msg, cls = MessageEncoder).encode(), 
