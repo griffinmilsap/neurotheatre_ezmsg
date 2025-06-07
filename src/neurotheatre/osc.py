@@ -173,16 +173,16 @@ class EEGOSC(ez.Unit):
                 if self.STATE.last_envelope <= self.SETTINGS.jaw_thresh and value > self.SETTINGS.jaw_thresh:
                     # Rising Edge
                     hand_packet = b''.join([
-                        struct.pack('<B', 1),  # Movement (1 byte), 1 = 'close'
+                        struct.pack('<B', 2),  # Movement (1 byte), 2 = close
                         struct.pack('<f', 0.5),  # Speed (4 bytes)
-                        struct.pack('<H', 100)  # Duration (2 bytes)
+                        struct.pack('<H', 1000)  # Duration (2 bytes)
                     ])
                 elif self.STATE.last_envelope > self.SETTINGS.jaw_thresh and value < self.SETTINGS.jaw_thresh:
                     # Falling Edge
                     hand_packet = b''.join([
-                        struct.pack('<B', 0),  # Movement (1 byte), 0 = 'rest'
+                        struct.pack('<B', 1),  # Movement (1 byte), 1 = open
                         struct.pack('<f', 0.5),  # Speed (4 bytes)
-                        struct.pack('<H', 100)  # Duration (2 bytes)
+                        struct.pack('<H', 1000)  # Duration (2 bytes)
                     ])
 
                 self.STATE.last_envelope = value
