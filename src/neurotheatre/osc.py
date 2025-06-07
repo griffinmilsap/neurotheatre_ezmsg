@@ -23,7 +23,6 @@ from ezmsg.sigproc.affinetransform import common_rereference
 from ezmsg.sigproc.downsample import downsample
 from ezmsg.sigproc.aggregate import ranged_aggregate
 from ezmsg.sigproc.spectrum import spectrum
-from ezmsg.sigproc.scaler import scaler_np
 from ezmsg.sigproc.filter import filtergen
 from ezmsg.sigproc.math.abs import abs
 
@@ -51,13 +50,6 @@ class EEGOSCSettings(ez.Settings):
             'gamma': (30.0, 50.0) # Hz
         }
     )
-    handstate_dict: typing.Dict[str, int] = field(
-        default_factory = lambda: {
-            'rest': 0,
-            'close': 1,
-            'open': 2
-        }
-    )
     jaw_port: int = 8002 # Port for jaw clench detection
     jaw_thresh: float = 20 # Threshold for jaw clench detection in the envelope (in mv)
     imu_port: int = 9001
@@ -70,11 +62,12 @@ class EEGOSCState(ez.State):
     vqf: VQF
     bands: typing.List[typing.Tuple[float, float]]
     band_names: typing.List[str]
-    handstate: str = 'rest'  # State of the hand (rest, open, close)
 
     td_client: SimpleUDPClient
     imu_client: socket.socket
     hand_client: socket.socket
+
+    last_envelope: float = 0
 
 class EEGOSC(ez.Unit):
     SETTINGS = EEGOSCSettings
@@ -99,8 +92,7 @@ class EEGOSC(ez.Unit):
             windowing(axis = self.SETTINGS.time_axis, newaxis = 'window', window_dur = 2.0, window_shift = 0.5, zero_pad_until = 'input'),
             spectrum(axis = self.SETTINGS.time_axis, out_axis = 'freq'),
             ranged_aggregate(axis = 'freq', bands = self.STATE.bands),
-            # scaler_np(time_constant = self.SETTINGS.bands_tau, axis = 'window'),
-            butter(axis = 'window', order = 2, cutoff = 0.25)
+            butter(axis = 'window', order = 2, cutoff = 0.1)
         )
 
         self.STATE.ssvep = compose(
@@ -133,15 +125,6 @@ class EEGOSC(ez.Unit):
 
         self.STATE.hand_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.STATE.imu_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    
-    # Debugging the hand packet
-    def read_hand_data(self, data):
-                
-        mvmt = struct.unpack( '<B', data[0:1] )[0]
-        speed = struct.unpack( '<f', data[1:-2] )[0]
-        duration = struct.unpack( '<H', data[-2:] )[0]
-
-        print( 'Test Movement %d at %f Speed for %d ms' % ( mvmt, speed, duration ) )
 
     @ez.subscriber(INPUT_SIGNAL)
     async def on_signal(self, msg: AxisArray):
@@ -181,32 +164,32 @@ class EEGOSC(ez.Unit):
         envelope: AxisArray = self.STATE.enveloper(msg)
         if envelope.data.size != 0:
             for aa in envelope.iter_over_axis(self.SETTINGS.time_axis):
-                self.STATE.td_client.send_message('/eeg/envelope', aa.data.item())
+                value = aa.data.item()
+                self.STATE.td_client.send_message('/eeg/envelope', value)
 
-                #print(f'Jaw Clench Envelope: {aa.data.item()}')
                 # Check if the envelope exceeds the jaw threshold
-                if aa.data.item() > self.SETTINGS.jaw_thresh:
-                    #print("Jaw clench detected!")
-                    #send packet to jaw clench port
-                    if self.STATE.handstate == 'rest':
-                        self.STATE.handstate = 'close'
-                    elif self.STATE.handstate == 'close':
-                        self.STATE.handstate = 'open'
-                    elif self.STATE.handstate == 'open':
-                        self.STATE.handstate = 'close'
-                else:
-                    self.STATE.handstate = 'rest'
-
-                hand_packet_data = [
-                        struct.pack('<B', self.SETTINGS.handstate_dict[self.STATE.handstate]),  # Movement (1 byte)
+                # 'rest': 0, 'close': 1, 'open': 2
+                hand_packet: typing.Optional[bytes] = None
+                if self.STATE.last_envelope <= self.SETTINGS.jaw_thresh and value > self.SETTINGS.jaw_thresh:
+                    # Rising Edge
+                    hand_packet = b''.join([
+                        struct.pack('<B', 1),  # Movement (1 byte), 1 = 'close'
                         struct.pack('<f', 0.5),  # Speed (4 bytes)
                         struct.pack('<H', 100)  # Duration (2 bytes)
-                    ]
+                    ])
+                elif self.STATE.last_envelope > self.SETTINGS.jaw_thresh and value < self.SETTINGS.jaw_thresh:
+                    # Falling Edge
+                    hand_packet = b''.join([
+                        struct.pack('<B', 0),  # Movement (1 byte), 0 = 'rest'
+                        struct.pack('<f', 0.5),  # Speed (4 bytes)
+                        struct.pack('<H', 100)  # Duration (2 bytes)
+                    ])
 
-                hand_packet = b''.join(hand_packet_data)
-                #self.read_hand_data(hand_packet)
-                hand_addr, hand_port = tuple(self.SETTINGS.hand_address.split(':'))
-                self.STATE.hand_client.sendto(hand_packet, (hand_addr, int(hand_port)))
+                self.STATE.last_envelope = value
+
+                if hand_packet:
+                    hand_addr, hand_port = tuple(self.SETTINGS.hand_address.split(':'))
+                    self.STATE.hand_client.sendto(hand_packet, (hand_addr, int(hand_port)))
 
     @ez.subscriber(INPUT_MOTION)
     async def on_motion(self, msg: AxisArray):
